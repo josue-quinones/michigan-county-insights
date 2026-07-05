@@ -1,0 +1,15 @@
+bin/
+obj/
+
+.vs/
+.vscode/
+*.user
+*.suo
+
+TestResults/
+*.trx
+*.coverage
+*.coveragexml
+
+appsettings.Local.json
+src/**/appsettings.Local.json

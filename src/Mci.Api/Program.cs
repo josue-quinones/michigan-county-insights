@@ -1,3 +1,4 @@
+using Mci.Api.Reporting;
 using Mci.Infrastructure;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -21,6 +22,7 @@ if (app.Environment.IsDevelopment())
 }
 
 app.MapHealthChecks("/health");
+app.MapReportingEndpoints();
 app.MapGet("/", () => Results.Redirect("/health"));
 
 app.Run();

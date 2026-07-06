@@ -1,6 +1,8 @@
+using Mci.Core.Application.Reporting;
 using Mci.Infrastructure.Census;
 using Mci.Infrastructure.Importing;
 using Mci.Infrastructure.Persistence;
+using Mci.Infrastructure.Reporting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -33,6 +35,10 @@ public static class DependencyInjection
             var options = serviceProvider.GetRequiredService<IOptions<CensusOptions>>().Value;
             client.BaseAddress = new Uri(NormalizeBaseUrl(options.BaseUrl), UriKind.Absolute);
         });
+
+        services.AddScoped<RawAcsStagingImportService>();
+        services.AddScoped<CountyMetricFactLoadService>();
+        services.AddScoped<IReportingQueryService, ReportingQueryService>();
 
         return services;
     }

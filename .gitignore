@@ -13,3 +13,12 @@ TestResults/
 
 appsettings.Local.json
 src/**/appsettings.Local.json
+
+mci-dashboard/node_modules/
+mci-dashboard/dist/
+mci-dashboard/*.tsbuildinfo
+mci-dashboard/vite.config.js
+mci-dashboard/vite.config.d.ts
+
+artifacts/*.log
+artifacts/*.pid

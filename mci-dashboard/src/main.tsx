@@ -62,6 +62,11 @@ type SortKey = "rank" | "countyName" | "estimateValue" | "marginOfError";
 type SortDirection = "asc" | "desc";
 
 const defaultReleaseYear = 2024;
+const apiBaseUrl = (import.meta.env.VITE_API_BASE_URL ?? "").replace(/\/$/, "");
+
+function apiUrl(path: string): string {
+  return `${apiBaseUrl}${path}`;
+}
 
 async function getJson<T>(url: string): Promise<T> {
   const response = await fetch(url);
@@ -87,8 +92,8 @@ function App() {
 
   const loadFilterData = React.useCallback(async () => {
     const [metricData, countyData] = await Promise.all([
-      getJson<Metric[]>("/api/reporting/metrics"),
-      getJson<County[]>("/api/reporting/counties")
+      getJson<Metric[]>(apiUrl("/api/reporting/metrics")),
+      getJson<County[]>(apiUrl("/api/reporting/counties"))
     ]);
 
     setMetrics(metricData);
@@ -112,8 +117,8 @@ function App() {
     }
 
     const [observationData, summaryData] = await Promise.all([
-      getJson<Observation[]>(`/api/reporting/current-observations?${params}`),
-      getJson<Summary[]>(`/api/reporting/current-observations/summary?${params}`)
+      getJson<Observation[]>(apiUrl(`/api/reporting/current-observations?${params}`)),
+      getJson<Summary[]>(apiUrl(`/api/reporting/current-observations/summary?${params}`))
     ]);
 
     setObservations(observationData);

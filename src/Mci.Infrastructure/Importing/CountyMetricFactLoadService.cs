@@ -3,6 +3,7 @@ using Mci.Core.Domain.Entities;
 using Mci.Core.Domain.Enums;
 using Mci.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
 namespace Mci.Infrastructure.Importing;
@@ -16,13 +17,16 @@ public sealed class CountyMetricFactLoadService
 
     private readonly MciDbContext _dbContext;
     private readonly ImportOptions _options;
+    private readonly ILogger<CountyMetricFactLoadService> _logger;
 
     public CountyMetricFactLoadService(
         MciDbContext dbContext,
-        IOptions<ImportOptions> options)
+        IOptions<ImportOptions> options,
+        ILogger<CountyMetricFactLoadService> logger)
     {
         _dbContext = dbContext;
         _options = options.Value;
+        _logger = logger;
     }
 
     public async Task<CountyMetricFactLoadResult> LoadMetricsFromLatestValidatedStagingAsync(
@@ -45,6 +49,12 @@ public sealed class CountyMetricFactLoadService
             throw new InvalidOperationException(
                 $"No successful validated staging import was found for default {SourceCode} {DatasetCode} {_options.DefaultAcsReleaseYear}.");
         }
+
+        _logger.LogInformation(
+            "Started county metric fact load for import run {ImportRunId} and data release {DataReleaseId} ({ReleaseYear}).",
+            importRun.Id,
+            importRun.DataReleaseId,
+            importRun.DataRelease.ReleaseYear);
 
         var existingMetricDefinitionIds = await _dbContext.CountyMetricObservations
             .Where(observation => observation.ImportRunId == importRun.Id)
@@ -127,6 +137,16 @@ public sealed class CountyMetricFactLoadService
 
         importRun.RecordsInserted = totalObservationCount;
         await _dbContext.SaveChangesAsync(cancellationToken);
+
+        _logger.LogInformation(
+            "Completed county metric fact load for import run {ImportRunId} with status {ImportRunStatus}. Fact rows inserted {RecordsInserted}, issues {IssueCount}, errors {ErrorCount}, warnings {WarningCount}, already loaded {AlreadyLoaded}.",
+            importRun.Id,
+            importRun.Status,
+            importRun.RecordsInserted,
+            importIssues.Count,
+            errorCount,
+            warningCount,
+            observations.Count == 0 && importIssues.Count == 0);
 
         return new CountyMetricFactLoadResult(
             importRun.Id,

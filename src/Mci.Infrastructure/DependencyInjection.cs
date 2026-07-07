@@ -1,6 +1,8 @@
+using Mci.Core.Application.Operations;
 using Mci.Core.Application.Reporting;
 using Mci.Infrastructure.Census;
 using Mci.Infrastructure.Importing;
+using Mci.Infrastructure.Operations;
 using Mci.Infrastructure.Persistence;
 using Mci.Infrastructure.Reporting;
 using Microsoft.EntityFrameworkCore;
@@ -38,6 +40,7 @@ public static class DependencyInjection
 
         services.AddScoped<RawAcsStagingImportService>();
         services.AddScoped<CountyMetricFactLoadService>();
+        services.AddScoped<IOperationsQueryService, OperationsQueryService>();
         services.AddScoped<IReportingQueryService, ReportingQueryService>();
 
         return services;

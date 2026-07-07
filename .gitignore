@@ -22,3 +22,5 @@ mci-dashboard/vite.config.d.ts
 
 artifacts/*.log
 artifacts/*.pid
+artifacts/publish/
+artifacts/secrets/

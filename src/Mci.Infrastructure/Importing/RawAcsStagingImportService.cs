@@ -5,6 +5,7 @@ using Mci.Core.Domain.Enums;
 using Mci.Infrastructure.Census;
 using Mci.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
 namespace Mci.Infrastructure.Importing;
@@ -19,15 +20,18 @@ public sealed class RawAcsStagingImportService
     private readonly MciDbContext _dbContext;
     private readonly CensusAcsClient _censusClient;
     private readonly ImportOptions _options;
+    private readonly ILogger<RawAcsStagingImportService> _logger;
 
     public RawAcsStagingImportService(
         MciDbContext dbContext,
         CensusAcsClient censusClient,
-        IOptions<ImportOptions> options)
+        IOptions<ImportOptions> options,
+        ILogger<RawAcsStagingImportService> logger)
     {
         _dbContext = dbContext;
         _censusClient = censusClient;
         _options = options.Value;
+        _logger = logger;
     }
 
     public async Task<RawAcsStagingImportResult> ImportDefaultAcsReleaseAsync(
@@ -62,6 +66,12 @@ public sealed class RawAcsStagingImportService
 
         _dbContext.ImportRuns.Add(importRun);
         await _dbContext.SaveChangesAsync(cancellationToken);
+
+        _logger.LogInformation(
+            "Started raw ACS staging import {ImportRunId} for data release {DataReleaseId} ({ReleaseYear}).",
+            importRun.Id,
+            dataRelease.Id,
+            dataRelease.ReleaseYear);
 
         try
         {
@@ -133,6 +143,16 @@ public sealed class RawAcsStagingImportService
 
             await _dbContext.SaveChangesAsync(cancellationToken);
 
+            _logger.LogInformation(
+                "Completed raw ACS staging import {ImportRunId} with status {ImportRunStatus}. Fetched {RecordsFetched} county rows, staged {RecordsStaged} raw rows, issues {IssueCount}, errors {ErrorCount}, warnings {WarningCount}.",
+                importRun.Id,
+                importRun.Status,
+                importRun.RecordsFetched,
+                importRun.RecordsStaged,
+                importIssues.Count,
+                errorCount,
+                warningCount);
+
             return new RawAcsStagingImportResult(
                 importRun.Id,
                 dataRelease.Id,
@@ -161,6 +181,13 @@ public sealed class RawAcsStagingImportService
 
                 await _dbContext.SaveChangesAsync(CancellationToken.None);
             }
+
+            _logger.LogError(
+                ex,
+                "Raw ACS staging import {ImportRunId} failed after fetching {RecordsFetched} county rows and staging {RecordsStaged} raw rows.",
+                importRun.Id,
+                importRun.RecordsFetched,
+                importRun.RecordsStaged);
 
             throw;
         }

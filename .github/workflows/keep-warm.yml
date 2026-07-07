@@ -1,0 +1,28 @@
+name: Keep API warm
+
+# Pings the API health endpoint on a schedule so the Azure Container App does not
+# scale to zero (which costs a ~20s cold-start on the next request). Free on this
+# public repo. /health has no database check, so this deliberately does NOT wake
+# the serverless SQL database — keeping the DB paused is what keeps it free. The
+# first visit after the DB's 60-minute auto-pause therefore still pays a resume.
+
+on:
+  schedule:
+    - cron: "*/5 * * * *" # every 5 minutes (GitHub's shortest interval)
+  workflow_dispatch:
+
+concurrency:
+  group: keep-warm
+  cancel-in-progress: true
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping API health
+        run: |
+          url="https://mci-api.happyocean-6099a1f7.eastus.azurecontainerapps.io/health"
+          # --max-time covers a cold start; the ping itself warms the container, so
+          # a timeout is not a failure worth alerting on.
+          code=$(curl -s -o /dev/null -w "%{http_code}" --max-time 90 "$url" || echo "000")
+          echo "Health ping returned: $code"

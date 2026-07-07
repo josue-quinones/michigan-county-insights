@@ -1,5 +1,6 @@
 using Mci.Core.Domain.Enums;
 using Mci.Infrastructure;
+using Mci.Infrastructure.Analytics;
 using Mci.Infrastructure.Importing;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -38,10 +39,14 @@ else if (string.Equals(command, "stage-and-load-facts", StringComparison.Ordinal
     await RunRawStageAsync(scope.ServiceProvider);
     await RunFactLoadAsync(scope.ServiceProvider);
 }
+else if (string.Equals(command, "clarity-insights", StringComparison.OrdinalIgnoreCase))
+{
+    await RunClarityInsightsAsync(scope.ServiceProvider);
+}
 else
 {
     Console.Error.WriteLine($"Unknown command: {command}");
-    Console.Error.WriteLine("Supported commands: raw-stage, load-facts, stage-and-load-facts");
+    Console.Error.WriteLine("Supported commands: raw-stage, load-facts, stage-and-load-facts, clarity-insights");
     return 1;
 }
 
@@ -59,6 +64,25 @@ static async Task RunRawStageAsync(IServiceProvider serviceProvider)
     Console.WriteLine($"Validation issues: {result.IssueCount}");
     Console.WriteLine($"Validation errors: {result.ErrorCount}");
     Console.WriteLine($"Validation warnings: {result.WarningCount}");
+}
+
+static async Task RunClarityInsightsAsync(IServiceProvider serviceProvider)
+{
+    var clarityService = serviceProvider.GetRequiredService<ClarityInsightsImportService>();
+    var result = await clarityService.FetchAndStoreDailyInsightsAsync();
+
+    Console.WriteLine($"Capture date: {result.CaptureDate:yyyy-MM-dd}");
+    Console.WriteLine($"Executed: {result.Executed}");
+    Console.WriteLine($"Already captured today: {result.AlreadyCaptured}");
+
+    if (result.SkipReason is not null)
+    {
+        Console.WriteLine($"Skip reason: {result.SkipReason}");
+    }
+
+    Console.WriteLine($"Snapshot id: {result.SnapshotId}");
+    Console.WriteLine($"Total sessions: {result.TotalSessionCount}");
+    Console.WriteLine($"Distinct users: {result.DistinctUserCount}");
 }
 
 static async Task RunFactLoadAsync(IServiceProvider serviceProvider)

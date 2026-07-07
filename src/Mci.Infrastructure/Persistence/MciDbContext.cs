@@ -18,6 +18,8 @@ public sealed class MciDbContext(DbContextOptions<MciDbContext> options) : DbCon
     public DbSet<CurrentCountyMetricObservation> CurrentCountyMetricObservations =>
         Set<CurrentCountyMetricObservation>();
 
+    public DbSet<ClarityInsightSnapshot> ClarityInsightSnapshots => Set<ClarityInsightSnapshot>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
@@ -30,6 +32,7 @@ public sealed class MciDbContext(DbContextOptions<MciDbContext> options) : DbCon
         modelBuilder.ApplyConfiguration(new AcsCountyVariableConfiguration());
         modelBuilder.ApplyConfiguration(new CountyMetricObservationConfiguration());
         modelBuilder.ApplyConfiguration(new CurrentCountyMetricObservationConfiguration());
+        modelBuilder.ApplyConfiguration(new ClarityInsightSnapshotConfiguration());
 
         modelBuilder.Entity<County>().HasData(MciReferenceData.Counties);
         modelBuilder.Entity<MetricDefinition>().HasData(MciReferenceData.MetricDefinitions);

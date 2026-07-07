@@ -1,5 +1,6 @@
 using Mci.Core.Application.Operations;
 using Mci.Core.Application.Reporting;
+using Mci.Infrastructure.Analytics;
 using Mci.Infrastructure.Census;
 using Mci.Infrastructure.Importing;
 using Mci.Infrastructure.Operations;
@@ -33,6 +34,7 @@ public static class DependencyInjection
 
         services.Configure<CensusOptions>(configuration.GetSection(CensusOptions.SectionName));
         services.Configure<ImportOptions>(configuration.GetSection(ImportOptions.SectionName));
+        services.Configure<ClarityOptions>(configuration.GetSection(ClarityOptions.SectionName));
 
         services.AddHttpClient<CensusAcsClient>((serviceProvider, client) =>
         {
@@ -40,8 +42,15 @@ public static class DependencyInjection
             client.BaseAddress = new Uri(NormalizeBaseUrl(options.BaseUrl), UriKind.Absolute);
         });
 
+        services.AddHttpClient<ClarityInsightsClient>((serviceProvider, client) =>
+        {
+            var options = serviceProvider.GetRequiredService<IOptions<ClarityOptions>>().Value;
+            client.BaseAddress = new Uri(NormalizeBaseUrl(options.BaseUrl), UriKind.Absolute);
+        });
+
         services.AddScoped<RawAcsStagingImportService>();
         services.AddScoped<CountyMetricFactLoadService>();
+        services.AddScoped<ClarityInsightsImportService>();
         services.AddScoped<IOperationsQueryService, OperationsQueryService>();
         services.AddScoped<IReportingQueryService, ReportingQueryService>();
         services.AddScoped<ICountyInsightService, CountyInsightService>();

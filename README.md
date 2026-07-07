@@ -159,6 +159,37 @@ The dashboard uses [Microsoft Clarity](https://clarity.microsoft.com) (free) for
 - Add a repository secret named `CLARITY_PROJECT_ID` with that value. The `Deploy Dashboard` workflow passes it to the build as `VITE_CLARITY_PROJECT_ID`.
 - The tracking script is injected only when `VITE_CLARITY_PROJECT_ID` is set, so local development and any build without the secret stay tracking-free.
 
+### Analytics ingestion worker
+
+The Clarity dashboard shows session recordings and heatmaps. For aggregate metrics, the import worker can pull the Clarity [Data Export API](https://learn.microsoft.com/en-us/clarity/setup-and-installation/clarity-data-export) into SQL Server so the platform can report on its own traffic.
+
+- Generate a Data Export API token in Clarity → **Settings → Data Export → Generate new API token**.
+- Provide it as `Clarity__ApiToken` (env var) or in a gitignored `appsettings.Local.json`. `Clarity__NumOfDays` (1-3) sets the rolling window; default 1.
+- Run the fetch:
+
+  ```powershell
+  dotnet run --project src/Mci.ImportWorker -- clarity-insights
+  ```
+
+The worker stores one `mci_ops.ClarityInsightSnapshot` row per UTC day (headline metrics plus the verbatim payload). It is **idempotent**: if today's snapshot already exists it makes no API call, keeping it under Clarity's ~10 requests/day limit.
+
+Constraints worth knowing: the export API returns **aggregated** metrics only (no raw sessions/recordings) for a rolling **1-3 day** window, so this is a daily trend feed, not a full mirror.
+
+**Scheduling (Azure).** Reuse the published `mci-import-worker` image as a cron-triggered Azure Container Apps Job. Azure runs it daily — no GitHub workflow needed:
+
+```powershell
+az containerapp job create `
+  --name mci-clarity-insights `
+  --resource-group rg-mci-prod `
+  --environment <your-container-apps-environment> `
+  --trigger-type Schedule `
+  --cron-expression "0 8 * * *" `
+  --image ghcr.io/josue-quinones/mci-import-worker:latest `
+  --args "clarity-insights" `
+  --secrets clarity-token=<DATA_EXPORT_TOKEN> db-conn=<CONNECTION_STRING> `
+  --env-vars Clarity__ApiToken=secretref:clarity-token ConnectionStrings__MciDatabase=secretref:db-conn DOTNET_ENVIRONMENT=Production
+```
+
 ## Domains and DNS
 
 The frontend is served from Azure Static Web Apps and is intended to be reached at `portfolio.josueq.com`. Custom-domain binding and DNS live in Azure/your DNS provider, not in this repository.

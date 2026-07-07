@@ -27,7 +27,9 @@ public static class DependencyInjection
         }
 
         services.AddDbContext<MciDbContext>(options =>
-            options.UseSqlServer(connectionString));
+            options.UseSqlServer(
+                connectionString,
+                sqlOptions => sqlOptions.EnableRetryOnFailure()));
 
         services.Configure<CensusOptions>(configuration.GetSection(CensusOptions.SectionName));
         services.Configure<ImportOptions>(configuration.GetSection(ImportOptions.SectionName));

@@ -22,7 +22,7 @@ import "./styles.css";
 
 // Contact + source links. Set githubUrl to a public repo URL to reveal the GitHub link.
 const linkedInUrl = "https://www.linkedin.com/in/josuequin/";
-const githubUrl: string | null = null;
+const githubUrl: string | null = "https://github.com/josue-quinones/michigan-county-insights";
 
 type Metric = {
   code: string;

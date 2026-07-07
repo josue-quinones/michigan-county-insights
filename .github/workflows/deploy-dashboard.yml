@@ -16,6 +16,9 @@ jobs:
 
     env:
       VITE_API_BASE_URL: https://mci-api.happyocean-6099a1f7.eastus.azurecontainerapps.io
+      # Microsoft Clarity analytics. Set the CLARITY_PROJECT_ID repository secret to
+      # your Clarity project id; when unset the tracking script is not injected.
+      VITE_CLARITY_PROJECT_ID: ${{ secrets.CLARITY_PROJECT_ID }}
 
     steps:
       - name: Checkout

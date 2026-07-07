@@ -44,6 +44,7 @@ public static class DependencyInjection
         services.AddScoped<CountyMetricFactLoadService>();
         services.AddScoped<IOperationsQueryService, OperationsQueryService>();
         services.AddScoped<IReportingQueryService, ReportingQueryService>();
+        services.AddScoped<ICountyInsightService, CountyInsightService>();
 
         return services;
     }

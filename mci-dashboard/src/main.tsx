@@ -11,72 +11,21 @@ import {
 import {
   ArrowRight,
   BarChart3,
-  Bug,
   Code2,
   LineChart,
   Linkedin,
   Plug,
-  ShieldCheck,
-  Users,
-  Workflow,
   Wrench
 } from "lucide-react";
 import "./styles.css";
 
 const DemoPage = React.lazy(() => import("./DemoPage"));
+const CountyDetailPage = React.lazy(() => import("./pages/CountyDetailPage"));
+const CountyComparisonPage = React.lazy(() => import("./pages/CountyComparisonPage"));
 
 // Contact + source links. Set githubUrl to a public repo URL to reveal the GitHub link.
 const linkedInUrl = "https://www.linkedin.com/in/josuequin/";
 const githubUrl: string | null = "https://github.com/josue-quinones/michigan-county-insights";
-
-const buildStages = [
-  "Requirements",
-  "Design",
-  "Database",
-  "API",
-  "Frontend",
-  "Testing",
-  "Deployment"
-];
-
-const architectureStages = [
-  "Census ACS API",
-  "Import worker",
-  "SQL Server",
-  "Application services",
-  "REST · GraphQL · MCP",
-  "React dashboard"
-];
-
-const practices = [
-  {
-    icon: Workflow,
-    title: "How I approach problems",
-    body: "I start from the decision, not the code. Before writing anything I pinned down the grain of the data — one metric, one county, one Census release, one successful import run — because getting that wrong makes every layer above it wrong. I scope deliberately: V1 is 8 metrics and one state, not every Census variable, so the system stays coherent instead of becoming portfolio padding. I would rather ship a narrow slice that works end to end than a broad one that half-works."
-  },
-  {
-    icon: Bug,
-    title: "How I debug",
-    body: "I make the system observable before I need it to be. Every import run records its status, timing, and row counts — fetched, staged, inserted, rejected — and every validation or load problem becomes a queryable import issue with a severity and a stage. So when something is off I can ask the database what failed, where, and how badly instead of guessing from a stack trace. I reproduce before I fix, and I keep raw staging data around so I can compare source values against loaded values."
-  },
-  {
-    icon: Users,
-    title: "How I work with stakeholders",
-    body: "I translate business questions into system design. The dashboard exists to answer real questions — which counties grew, who has the highest income, how does Washtenaw compare to Kent — and I let those questions drive the API and schema. I am explicit about what the system does not do, so expectations are set honestly. And I flag statistical nuance a non-technical stakeholder would otherwise get wrong: ACS 5-Year releases are rolling estimates, so I refuse to label adjacent releases as year-over-year growth."
-  },
-  {
-    icon: ShieldCheck,
-    title: "How I validate data",
-    body: "I never let bad or missing data silently become zero. Before any value reaches the reporting tables it passes explicit checks: every county present, every required Census variable present, values parse correctly, percentages stay within 0–100, derived denominators are greater than zero, no duplicate rows. Successful imports are immutable and retries create new runs, so history stays auditable. Large swings raise a warning for review rather than an automatic failure — because in real reporting systems, surprising-but-correct and wrong look the same until a human looks."
-  }
-];
-
-const techGroups = [
-  { label: "Backend", items: ["C#", ".NET 9", "ASP.NET Core", "EF Core", "SQL Server"] },
-  { label: "APIs", items: ["REST", "Hot Chocolate GraphQL", "Read-only MCP"] },
-  { label: "Frontend", items: ["React", "TypeScript", "Vite"] },
-  { label: "Delivery", items: ["Docker", "Azure Container Apps", "Azure SQL", "Static Web Apps"] }
-];
 
 const services = [
   {
@@ -101,21 +50,6 @@ const services = [
   }
 ];
 
-function StageFlow({ stages }: { stages: string[] }) {
-  return (
-    <div className="stage-flow">
-      {stages.map((stage, index) => (
-        <React.Fragment key={stage}>
-          <span className="stage-chip">{stage}</span>
-          {index < stages.length - 1 && (
-            <ArrowRight className="stage-arrow" size={16} aria-hidden="true" />
-          )}
-        </React.Fragment>
-      ))}
-    </div>
-  );
-}
-
 function Hero() {
   return (
     <header className="hero">
@@ -129,10 +63,9 @@ function Hero() {
           I build reporting systems, integrations, APIs, and internal business software.
         </h1>
         <p className="hero-lede">
-          Michigan County Insights is a working demonstration of that — a full reporting-system
-          stack built end to end on real U.S. Census data. It stages raw Census values, validates
-          them, loads clean county metric facts into SQL Server, and serves them through a deployed
-          .NET API, GraphQL, a read-only MCP server, and an interactive React dashboard.
+          Michigan County Insights is a working demonstration — a full reporting-system stack built
+          end to end on real U.S. Census data, served through a deployed .NET API and an interactive
+          React dashboard.
         </p>
         <div className="hero-actions">
           <a className="button primary" href="#contact">
@@ -183,64 +116,6 @@ function Services() {
   );
 }
 
-function HowIBuild() {
-  return (
-    <section className="band">
-      <div className="container">
-        <p className="eyebrow">How I build software</p>
-        <h2 className="section-title">A deliberate path from requirements to production</h2>
-        <StageFlow stages={buildStages} />
-        <div className="practice-grid">
-          {practices.map((practice) => {
-            const Icon = practice.icon;
-            return (
-              <article className="practice-card" key={practice.title}>
-                <div className="practice-head">
-                  <Icon size={18} aria-hidden="true" />
-                  <h3>{practice.title}</h3>
-                </div>
-                <p>{practice.body}</p>
-              </article>
-            );
-          })}
-        </div>
-      </div>
-    </section>
-  );
-}
-
-function Architecture() {
-  return (
-    <section className="band band-tint">
-      <div className="container">
-        <p className="eyebrow">Architecture</p>
-        <h2 className="section-title">One connected platform, a modular monolith</h2>
-        <p className="section-lede">
-          The REST API, GraphQL API, and MCP tools all run over the same application services and
-          the same SQL Server model — no interface recalculates rankings or comparisons on its own.
-          Raw staging data is retained for troubleshooting but is never queried by the public
-          surface.
-        </p>
-        <StageFlow stages={architectureStages} />
-        <div className="tech-strip">
-          {techGroups.map((group) => (
-            <div className="tech-group" key={group.label}>
-              <span className="tech-label">{group.label}</span>
-              <div className="tech-tags">
-                {group.items.map((item) => (
-                  <span className="tech-tag" key={item}>
-                    {item}
-                  </span>
-                ))}
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-    </section>
-  );
-}
-
 function DemoTeaser() {
   return (
     <section className="band" id="live-demo">
@@ -249,10 +124,9 @@ function DemoTeaser() {
           <p className="eyebrow">Live demo</p>
           <h2 className="section-title">Explore the county metrics dashboard</h2>
           <p className="section-lede">
-            Real U.S. Census ACS 5-Year data for Michigan&apos;s 83 counties, loaded through the
-            import pipeline and served by the deployed .NET reporting API. Rank counties for any
-            metric, focus a single county, and read the current observations — charts and table,
-            straight off the live API.
+            Real U.S. Census ACS 5-Year data for Michigan&apos;s 83 counties, served by the deployed
+            .NET reporting API. Rank counties for any metric, open a county&apos;s detail, and
+            compare two counties side by side — plus the full architecture and engineering approach.
           </p>
           <Link className="button primary" to="/demo">
             <BarChart3 size={16} aria-hidden="true" />
@@ -318,8 +192,6 @@ function HomePage() {
       <Hero />
       <main>
         <Services />
-        <HowIBuild />
-        <Architecture />
         <DemoTeaser />
         <Contact />
       </main>
@@ -343,15 +215,34 @@ function ScrollManager() {
   return null;
 }
 
-function DemoFallback() {
+// Load Microsoft Clarity only when a project id is configured (production build).
+// Keeps local dev free of tracking and avoids a broken script tag when unset.
+function useClarity() {
+  React.useEffect(() => {
+    const projectId = import.meta.env.VITE_CLARITY_PROJECT_ID;
+    if (!projectId || document.getElementById("mci-clarity")) {
+      return;
+    }
+
+    const script = document.createElement("script");
+    script.id = "mci-clarity";
+    script.type = "text/javascript";
+    script.text = `(function(c,l,a,r,i,t,y){c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);})(window,document,"clarity","script","${projectId}");`;
+    document.head.appendChild(script);
+  }, []);
+}
+
+function RouteFallback({ label }: { label: string }) {
   return (
     <div className="route-fallback" role="status">
-      Loading the live demo…
+      {label}
     </div>
   );
 }
 
 function App() {
+  useClarity();
+
   return (
     <BrowserRouter>
       <ScrollManager />
@@ -360,8 +251,24 @@ function App() {
         <Route
           path="/demo"
           element={
-            <Suspense fallback={<DemoFallback />}>
+            <Suspense fallback={<RouteFallback label="Loading the live demo…" />}>
               <DemoPage />
+            </Suspense>
+          }
+        />
+        <Route
+          path="/counties/:fips"
+          element={
+            <Suspense fallback={<RouteFallback label="Loading county detail…" />}>
+              <CountyDetailPage />
+            </Suspense>
+          }
+        />
+        <Route
+          path="/compare"
+          element={
+            <Suspense fallback={<RouteFallback label="Loading comparison…" />}>
+              <CountyComparisonPage />
             </Suspense>
           }
         />

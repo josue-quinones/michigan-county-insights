@@ -17,6 +17,21 @@ builder.Services.AddInfrastructure(builder.Configuration);
 builder.Services.AddHealthChecks();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
+builder.Services.AddOutputCache(options =>
+{
+    // Reporting data only changes on import, so a short shared cache is a cheap win.
+    // Vary by the query keys used across reporting + county-insight endpoints; the
+    // route {fips} is part of the path and varies automatically.
+    options.AddPolicy("Reporting", policy => policy
+        .Expire(TimeSpan.FromMinutes(5))
+        .SetVaryByQuery(
+            "metricCode",
+            "countyFipsCode",
+            "releaseYear",
+            "left",
+            "right",
+            "release"));
+});
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("Dashboard", policy =>
@@ -44,9 +59,12 @@ if (allowedCorsOrigins.Length > 0)
     app.UseCors("Dashboard");
 }
 
+app.UseOutputCache();
+
 app.MapHealthChecks("/health");
 app.MapOperationsEndpoints();
 app.MapReportingEndpoints();
+app.MapCountyInsightsEndpoints();
 app.MapGraphQL("/graphql");
 app.MapGet("/", () => Results.Redirect("/health"));
 

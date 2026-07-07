@@ -151,6 +151,25 @@ For Azure Container Apps, use platform secrets/environment variables rather than
 
 The published containers intentionally do not include `appsettings.Development.json` or `appsettings.Local.json`.
 
+## Analytics
+
+The dashboard uses [Microsoft Clarity](https://clarity.microsoft.com) (free) for pageview counts, visitor counts, session recordings, and heatmaps.
+
+- Create a free Clarity project and copy its project id.
+- Add a repository secret named `CLARITY_PROJECT_ID` with that value. The `Deploy Dashboard` workflow passes it to the build as `VITE_CLARITY_PROJECT_ID`.
+- The tracking script is injected only when `VITE_CLARITY_PROJECT_ID` is set, so local development and any build without the secret stay tracking-free.
+
+## Domains and DNS
+
+The frontend is served from Azure Static Web Apps and is intended to be reached at `portfolio.josueq.com`. Custom-domain binding and DNS live in Azure/your DNS provider, not in this repository.
+
+Recommended setup:
+
+- **`portfolio.josueq.com`** — add it as a custom domain on the Static Web App and create a `CNAME` record pointing `portfolio` to the SWA default `*.azurestaticapps.net` hostname. Complete the SWA domain-validation step.
+- **`josueq.com` (apex)** — 301-redirect the apex to `https://portfolio.josueq.com`. An apex cannot be a raw `CNAME`, so use your DNS provider's ALIAS/redirect feature (or an Azure redirect). Point the apex `A`/`ALIAS` record at the redirect target and configure the rule to send `https://josueq.com/*` to `https://portfolio.josueq.com`.
+
+A redirect (rather than binding both domains to the same app) keeps a single canonical URL and needs no CORS change, since the apex never serves the app directly.
+
 ## Sample API Requests
 
 Health:
@@ -166,6 +185,13 @@ GET /api/reporting/counties
 GET /api/reporting/metrics
 GET /api/reporting/current-observations?metricCode=population&countyFipsCode=26161&releaseYear=2024
 GET /api/reporting/current-observations/summary?releaseYear=2024
+```
+
+County detail and comparison (API-owned, formatting-neutral difference calculation):
+
+```http
+GET /api/counties/26161/detail?release=2024
+GET /api/comparisons?left=26161&right=26081&release=2024
 ```
 
 Operations:

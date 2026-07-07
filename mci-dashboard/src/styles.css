@@ -469,6 +469,10 @@ tbody tr:hover {
 /* ---- Demo page chrome ---- */
 
 .demo-topbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 18px;
   padding: 4px 0 12px;
 }
 
@@ -748,11 +752,340 @@ tbody tr:hover {
   color: #ffffff;
 }
 
+/* ---- Buttons on light backgrounds ---- */
+
+.button.solid {
+  background: #0f5f73;
+  color: #ffffff;
+  border-color: #0f5f73;
+}
+
+.button.solid:hover {
+  background: #0d5164;
+}
+
+.button.outline {
+  background: #ffffff;
+  color: #0f5f73;
+  border-color: #c6d2d8;
+}
+
+.button.outline:hover {
+  border-color: #0f5f73;
+}
+
+/* ---- Loading skeletons ---- */
+
+.skeleton {
+  display: block;
+  border-radius: 6px;
+  background: linear-gradient(90deg, #e6edf0 25%, #f2f6f7 37%, #e6edf0 63%);
+  background-size: 400% 100%;
+  animation: skeleton-shimmer 1.4s ease infinite;
+}
+
+.skeleton-text {
+  height: 0.95rem;
+  width: 100%;
+}
+
+.skeleton-text.skeleton-sm {
+  height: 0.72rem;
+  width: 55%;
+}
+
+.skeleton-text.skeleton-title {
+  height: 1.5rem;
+  width: 70%;
+}
+
+.skeleton-fill {
+  height: 20px;
+  border-radius: 3px;
+}
+
+.skeleton-bar-row {
+  align-items: center;
+}
+
+.table-skeleton {
+  display: grid;
+  gap: 10px;
+  padding: 16px;
+}
+
+.table-skeleton-row .skeleton {
+  height: 1.1rem;
+}
+
+@keyframes skeleton-shimmer {
+  0% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0 50%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skeleton {
+    animation: none;
+  }
+}
+
+/* ---- Ranking reveal (demo) ---- */
+
+.ranking-section {
+  margin-top: 8px;
+}
+
+.ranking-reveal {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 22px;
+  border: 1px dashed #c6d5da;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.ranking-reveal h2 {
+  font-size: 1.12rem;
+}
+
+.ranking-reveal p {
+  margin-top: 4px;
+  color: #536b78;
+  font-size: 0.94rem;
+}
+
+.county-link {
+  color: #0f5f73;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.county-link:hover {
+  text-decoration: underline;
+}
+
+.row-actions {
+  display: flex;
+  gap: 12px;
+}
+
+.row-actions a {
+  color: #0f5f73;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.row-actions a:hover {
+  text-decoration: underline;
+}
+
+/* ---- Project story on the demo page ---- */
+
+.project-story {
+  margin-top: 28px;
+  border-top: 1px solid #d9e0e4;
+}
+
+.project-story .band {
+  padding: 44px 0;
+}
+
+.project-story .band:last-child {
+  border-bottom: 0;
+}
+
+/* ---- County detail ---- */
+
+.detail-header {
+  flex-wrap: wrap;
+}
+
+.detail-header-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+
+.snapshot-cards {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 14px;
+  margin: 22px 0;
+}
+
+.snapshot-card {
+  display: grid;
+  gap: 8px;
+  align-content: start;
+  padding: 18px;
+  border: 1px solid #d7e0e5;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.snapshot-label {
+  color: #536b78;
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.snapshot-value {
+  font-size: 1.4rem;
+  line-height: 1.15;
+  font-variant-numeric: tabular-nums;
+}
+
+.snapshot-meta {
+  color: #6a828d;
+  font-size: 0.82rem;
+}
+
+.metric-profile {
+  margin-top: 8px;
+}
+
+.metric-profile > h2 {
+  font-size: 1.2rem;
+  margin-bottom: 12px;
+}
+
+.metric-group {
+  margin-bottom: 20px;
+  border: 1px solid #d7e0e5;
+  border-radius: 8px;
+  overflow: hidden;
+  background: #ffffff;
+}
+
+.metric-group > h3 {
+  margin: 0;
+  padding: 12px 16px;
+  border-bottom: 1px solid #e2e8eb;
+  background: #f7fafb;
+  font-size: 0.86rem;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  color: #475f6b;
+}
+
+.metric-group table {
+  min-width: 520px;
+}
+
+.data-note {
+  margin-top: 12px;
+  padding: 14px 16px;
+  border-left: 3px solid #0f5f73;
+  border-radius: 0 6px 6px 0;
+  background: #eef4f6;
+  color: #35505c;
+  font-size: 0.92rem;
+  line-height: 1.55;
+}
+
+.empty-state {
+  display: grid;
+  gap: 14px;
+  justify-items: start;
+  padding: 40px 0;
+}
+
+.empty-state.subtle {
+  color: #536b78;
+}
+
+.empty-state .button {
+  margin-top: 4px;
+}
+
+/* ---- County comparison ---- */
+
+.compare-controls {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  gap: 14px;
+  align-items: end;
+  padding: 20px 0;
+}
+
+.swap-button {
+  min-height: 42px;
+  padding: 0 14px;
+}
+
+.compare-summary-head {
+  margin: 6px 0 16px;
+}
+
+.compare-summary-head h2 {
+  font-size: 1.25rem;
+}
+
+.compare-summary-head p {
+  margin-top: 4px;
+  color: #536b78;
+  font-size: 0.94rem;
+}
+
+.compare-cards {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 14px;
+  border: 0;
+  background: transparent;
+  overflow: visible;
+}
+
+.compare-values {
+  display: grid;
+  gap: 4px;
+  color: #35505c;
+  font-size: 0.9rem;
+}
+
+.compare-diff {
+  font-size: 1.2rem;
+  color: #0f5f73;
+}
+
+.cell-moe {
+  color: #8497a0;
+  font-size: 0.82rem;
+}
+
 @media (max-width: 760px) {
   .app-shell {
     width: min(100vw - 20px, 1180px);
     padding-top: 18px;
   }
+
+  .snapshot-cards,
+  .compare-cards {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .compare-controls {
+    grid-template-columns: 1fr;
+  }
+
+  .swap-button {
+    justify-self: start;
+  }
+
+  .ranking-reveal {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
 
   .app-header {
     align-items: flex-start;

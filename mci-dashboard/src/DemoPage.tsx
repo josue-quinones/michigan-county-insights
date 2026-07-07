@@ -1,7 +1,17 @@
 import * as React from "react";
 import { Link } from "react-router-dom";
-import { ArrowDownUp, ArrowLeft, BarChart3, Database, RefreshCw } from "lucide-react";
+import {
+  ArrowDownUp,
+  ArrowLeft,
+  ArrowLeftRight,
+  BarChart3,
+  Database,
+  RefreshCw
+} from "lucide-react";
 import { ChartDatum, TopCountiesChart } from "./TopCountiesChart";
+import { ProjectStory } from "./ProjectStory";
+import { formatMetricValue } from "./lib/formatMetricValue";
+import { apiUrl, getJson } from "./lib/api";
 
 type Metric = {
   code: string;
@@ -60,23 +70,27 @@ type Summary = {
 type RankedObservation = Observation & { rank: number };
 type SortKey = "rank" | "countyName" | "estimateValue" | "marginOfError";
 type SortDirection = "asc" | "desc";
+type MetricPayload = { observations: Observation[]; summary: Summary[] };
 
 const defaultReleaseYear = 2024;
 const chartLimit = 12;
-const apiBaseUrl = (import.meta.env.VITE_API_BASE_URL ?? "").replace(/\/$/, "");
 
-function apiUrl(path: string): string {
-  return `${apiBaseUrl}${path}`;
-}
+// In-memory cache keyed by metric code. Re-selecting a previously loaded metric
+// renders instantly; a never-seen metric still shows the loading skeleton.
+const metricCache = new Map<string, MetricPayload>();
 
-async function getJson<T>(url: string): Promise<T> {
-  const response = await fetch(url);
+async function fetchMetricPayload(metricCode: string): Promise<MetricPayload> {
+  const params = new URLSearchParams({
+    metricCode,
+    releaseYear: String(defaultReleaseYear)
+  });
 
-  if (!response.ok) {
-    throw new Error(`Request failed: ${response.status} ${response.statusText}`);
-  }
+  const [observations, summary] = await Promise.all([
+    getJson<Observation[]>(apiUrl(`/api/reporting/current-observations?${params}`)),
+    getJson<Summary[]>(apiUrl(`/api/reporting/current-observations/summary?${params}`))
+  ]);
 
-  return response.json() as Promise<T>;
+  return { observations, summary };
 }
 
 export default function DemoPage() {
@@ -90,6 +104,8 @@ export default function DemoPage() {
   const [sortDirection, setSortDirection] = React.useState<SortDirection>("asc");
   const [isLoading, setIsLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
+  const [showRanking, setShowRanking] = React.useState(false);
+  const [rankingRevealing, setRankingRevealing] = React.useState(false);
 
   const loadFilterData = React.useCallback(async () => {
     const [metricData, countyData] = await Promise.all([
@@ -107,22 +123,28 @@ export default function DemoPage() {
     );
   }, []);
 
-  const loadObservations = React.useCallback(async () => {
-    // Fetch the full metric across every county once; the table and chart both
-    // derive from this, and the county selector focuses rather than re-queries.
-    const params = new URLSearchParams({
-      metricCode: selectedMetric,
-      releaseYear: String(defaultReleaseYear)
-    });
+  // Load (or refresh) the selected metric. Uses the cache unless forceReload is
+  // set (the Refresh button busts it so a manual refresh always re-queries).
+  const loadObservations = React.useCallback(
+    async (forceReload = false) => {
+      if (forceReload) {
+        metricCache.delete(selectedMetric);
+      }
 
-    const [observationData, summaryData] = await Promise.all([
-      getJson<Observation[]>(apiUrl(`/api/reporting/current-observations?${params}`)),
-      getJson<Summary[]>(apiUrl(`/api/reporting/current-observations/summary?${params}`))
-    ]);
+      const cached = metricCache.get(selectedMetric);
+      if (cached) {
+        setObservations(cached.observations);
+        setSummary(cached.summary);
+        return;
+      }
 
-    setObservations(observationData);
-    setSummary(summaryData);
-  }, [selectedMetric]);
+      const payload = await fetchMetricPayload(selectedMetric);
+      metricCache.set(selectedMetric, payload);
+      setObservations(payload.observations);
+      setSummary(payload.summary);
+    },
+    [selectedMetric]
+  );
 
   React.useEffect(() => {
     let isActive = true;
@@ -154,6 +176,15 @@ export default function DemoPage() {
     let isActive = true;
 
     async function load() {
+      // A cached metric renders synchronously, so skip the loading skeleton.
+      if (metricCache.has(selectedMetric)) {
+        const cached = metricCache.get(selectedMetric)!;
+        setObservations(cached.observations);
+        setSummary(cached.summary);
+        setIsLoading(false);
+        return;
+      }
+
       try {
         setIsLoading(true);
         setError(null);
@@ -178,6 +209,25 @@ export default function DemoPage() {
     };
   }, [loadObservations, selectedMetric]);
 
+  const handleRefresh = React.useCallback(async () => {
+    try {
+      setIsLoading(true);
+      setError(null);
+      await loadObservations(true);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to refresh reporting observations.");
+    } finally {
+      setIsLoading(false);
+    }
+  }, [loadObservations]);
+
+  const revealRanking = React.useCallback(() => {
+    setShowRanking(true);
+    setRankingRevealing(true);
+    const timer = window.setTimeout(() => setRankingRevealing(false), 350);
+    return () => window.clearTimeout(timer);
+  }, []);
+
   const selectedMetricInfo = metrics.find((metric) => metric.code === selectedMetric);
   const selectedSummary = summary[0];
   const releaseLabel = selectedSummary?.dataReleaseDisplayName ?? "2020-2024 ACS 5-Year";
@@ -186,7 +236,7 @@ export default function DemoPage() {
     : "2020-2024 ACS 5-Year";
 
   const format = React.useCallback(
-    (value: number) => formatValue(value, selectedMetricInfo),
+    (value: number) => formatMetricValue(value, selectedMetricInfo),
     [selectedMetricInfo]
   );
 
@@ -248,12 +298,20 @@ export default function DemoPage() {
     setSortDirection(nextSortKey === "countyName" ? "asc" : "desc");
   }
 
+  const chartLoading = isLoading && chartData.length === 0;
+  const summaryLoading = isLoading && !selectedSummary;
+  const tableLoading = rankingRevealing || (isLoading && tableRows.length === 0);
+
   return (
     <div className="app-shell demo-page">
       <div className="demo-topbar">
         <Link className="back-link" to="/">
           <ArrowLeft size={16} aria-hidden="true" />
           Back to portfolio
+        </Link>
+        <Link className="back-link" to="/compare">
+          <ArrowLeftRight size={16} aria-hidden="true" />
+          Compare counties
         </Link>
       </div>
 
@@ -292,7 +350,7 @@ export default function DemoPage() {
           </select>
         </label>
 
-        <button className="icon-button" type="button" onClick={loadObservations} title="Refresh data">
+        <button className="icon-button" type="button" onClick={handleRefresh} title="Refresh data">
           <RefreshCw size={18} aria-hidden="true" />
           <span>Refresh</span>
         </button>
@@ -300,29 +358,40 @@ export default function DemoPage() {
 
       {error && <div className="alert">{error}</div>}
 
-      <section className="summary-grid" aria-label="Selected metric summary">
-        <div>
-          <span className="summary-label">Release</span>
-          <strong>{releaseLabel}</strong>
-        </div>
-        <div>
-          <span className="summary-label">Counties</span>
-          <strong>{selectedSummary?.countyCount ?? rankedByValue.length}</strong>
-        </div>
-        <div>
-          <span className="summary-label">Range</span>
-          <strong>
-            {selectedSummary
-              ? `${format(selectedSummary.minimumEstimateValue)} - ${format(
-                  selectedSummary.maximumEstimateValue
-                )}`
-              : "Not loaded"}
-          </strong>
-        </div>
-        <div>
-          <span className="summary-label">Metric Type</span>
-          <strong>{selectedMetricInfo?.calculationType ?? "Metric"}</strong>
-        </div>
+      <section className="summary-grid" aria-label="Selected metric summary" aria-busy={summaryLoading}>
+        {summaryLoading ? (
+          <>
+            <SummaryTileSkeleton />
+            <SummaryTileSkeleton />
+            <SummaryTileSkeleton />
+            <SummaryTileSkeleton />
+          </>
+        ) : (
+          <>
+            <div>
+              <span className="summary-label">Release</span>
+              <strong>{releaseLabel}</strong>
+            </div>
+            <div>
+              <span className="summary-label">Counties</span>
+              <strong>{selectedSummary?.countyCount ?? rankedByValue.length}</strong>
+            </div>
+            <div>
+              <span className="summary-label">Range</span>
+              <strong>
+                {selectedSummary
+                  ? `${format(selectedSummary.minimumEstimateValue)} - ${format(
+                      selectedSummary.maximumEstimateValue
+                    )}`
+                  : "Not loaded"}
+              </strong>
+            </div>
+            <div>
+              <span className="summary-label">Metric Type</span>
+              <strong>{selectedMetricInfo?.calculationType ?? "Metric"}</strong>
+            </div>
+          </>
+        )}
       </section>
 
       <section className="metric-context">
@@ -334,63 +403,96 @@ export default function DemoPage() {
         <p className="guidance">{selectedMetricInfo?.comparisonGuidance}</p>
       </section>
 
-      <TopCountiesChart
-        data={chartData}
-        focusFips={focusCounty}
-        totalCounties={selectedSummary?.countyCount ?? rankedByValue.length}
-        format={format}
-      />
+      {chartLoading ? (
+        <ChartSkeleton />
+      ) : (
+        <TopCountiesChart
+          data={chartData}
+          focusFips={focusCounty}
+          totalCounties={selectedSummary?.countyCount ?? rankedByValue.length}
+          format={format}
+        />
+      )}
 
-      <section className="table-section">
-        <div className="table-heading">
-          <h2>{focusCounty ? "Selected county" : "All counties"}</h2>
-          <span>{isLoading ? "Loading..." : `${tableRows.length} rows`}</span>
-        </div>
+      <section className="ranking-section">
+        {!showRanking ? (
+          <div className="ranking-reveal">
+            <div>
+              <h2>Full county ranking</h2>
+              <p>See every Michigan county ranked for the selected metric, with margins of error.</p>
+            </div>
+            <button className="button outline" type="button" onClick={revealRanking}>
+              View full ranking
+            </button>
+          </div>
+        ) : (
+          <div className="table-section">
+            <div className="table-heading">
+              <h2>{focusCounty ? "Selected county" : "All counties"}</h2>
+              <span>{tableLoading ? "Loading…" : `${tableRows.length} rows`}</span>
+            </div>
 
-        <div className="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <SortableHeader label="Rank" active={sortKey === "rank"} onClick={() => updateSort("rank")} />
-                <SortableHeader
-                  label="County"
-                  active={sortKey === "countyName"}
-                  onClick={() => updateSort("countyName")}
-                />
-                <th>FIPS</th>
-                <SortableHeader
-                  label="Estimate"
-                  active={sortKey === "estimateValue"}
-                  onClick={() => updateSort("estimateValue")}
-                />
-                <SortableHeader
-                  label="MOE"
-                  active={sortKey === "marginOfError"}
-                  onClick={() => updateSort("marginOfError")}
-                />
-                <th>Release Period</th>
-              </tr>
-            </thead>
-            <tbody>
-              {tableRows.map((observation) => (
-                <tr
-                  key={observation.observationId}
-                  className={observation.countyFipsCode === focusCounty ? "row-focus" : undefined}
-                >
-                  <td>{observation.rank}</td>
-                  <td>{observation.countyName}</td>
-                  <td>{observation.countyFipsCode}</td>
-                  <td>{format(observation.estimateValue)}</td>
-                  <td>
-                    {observation.marginOfError === null ? "N/A" : format(observation.marginOfError)}
-                  </td>
-                  <td>{`${observation.periodStartYear}-${observation.periodEndYear}`}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+            {tableLoading ? (
+              <TableSkeleton />
+            ) : (
+              <div className="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <SortableHeader label="Rank" active={sortKey === "rank"} onClick={() => updateSort("rank")} />
+                      <SortableHeader
+                        label="County"
+                        active={sortKey === "countyName"}
+                        onClick={() => updateSort("countyName")}
+                      />
+                      <th>FIPS</th>
+                      <SortableHeader
+                        label="Estimate"
+                        active={sortKey === "estimateValue"}
+                        onClick={() => updateSort("estimateValue")}
+                      />
+                      <SortableHeader
+                        label="MOE"
+                        active={sortKey === "marginOfError"}
+                        onClick={() => updateSort("marginOfError")}
+                      />
+                      <th>Release Period</th>
+                      <th aria-label="Actions" />
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {tableRows.map((observation) => (
+                      <tr
+                        key={observation.observationId}
+                        className={observation.countyFipsCode === focusCounty ? "row-focus" : undefined}
+                      >
+                        <td>{observation.rank}</td>
+                        <td>
+                          <Link className="county-link" to={`/counties/${observation.countyFipsCode}`}>
+                            {observation.countyName}
+                          </Link>
+                        </td>
+                        <td>{observation.countyFipsCode}</td>
+                        <td>{format(observation.estimateValue)}</td>
+                        <td>
+                          {observation.marginOfError === null ? "N/A" : format(observation.marginOfError)}
+                        </td>
+                        <td>{`${observation.periodStartYear}-${observation.periodEndYear}`}</td>
+                        <td className="row-actions">
+                          <Link to={`/counties/${observation.countyFipsCode}`}>View</Link>
+                          <Link to={`/compare?left=${observation.countyFipsCode}`}>Compare</Link>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        )}
       </section>
+
+      <ProjectStory />
     </div>
   );
 }
@@ -414,15 +516,52 @@ function SortableHeader({
   );
 }
 
-function formatValue(value: number, metric?: Metric): string {
-  const decimalPlaces = metric?.decimalPlaces ?? 0;
-  const unit = metric?.unit;
-
+function SummaryTileSkeleton() {
   return (
-    new Intl.NumberFormat("en-US", {
-      maximumFractionDigits: decimalPlaces,
-      minimumFractionDigits: decimalPlaces,
-      style: unit === "Currency" ? "currency" : "decimal"
-    }).format(value) + (unit === "Percentage" ? "%" : "")
+    <div>
+      <span className="summary-label">
+        <span className="skeleton skeleton-text skeleton-sm" />
+      </span>
+      <strong>
+        <span className="skeleton skeleton-text" />
+      </strong>
+    </div>
+  );
+}
+
+function ChartSkeleton() {
+  return (
+    <div className="chart-card" aria-busy="true">
+      <div className="chart-head">
+        <h3>Top counties</h3>
+        <p>Loading the selected metric across all Michigan counties…</p>
+      </div>
+      <div className="bar-rows">
+        {Array.from({ length: 8 }).map((_, index) => (
+          <div className="bar-row skeleton-bar-row" key={index}>
+            <span className="skeleton skeleton-text skeleton-sm" />
+            <span className="skeleton skeleton-text" />
+            <div className="bar-track">
+              <div className="skeleton skeleton-fill" style={{ width: `${90 - index * 9}%` }} />
+            </div>
+            <span className="skeleton skeleton-text skeleton-sm" />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function TableSkeleton() {
+  return (
+    <div className="table-wrap" aria-busy="true">
+      <div className="table-skeleton">
+        {Array.from({ length: 8 }).map((_, index) => (
+          <div className="table-skeleton-row" key={index}>
+            <span className="skeleton skeleton-text" />
+          </div>
+        ))}
+      </div>
+    </div>
   );
 }

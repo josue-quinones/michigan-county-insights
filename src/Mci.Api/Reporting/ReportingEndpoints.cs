@@ -7,7 +7,8 @@ public static class ReportingEndpoints
     public static IEndpointRouteBuilder MapReportingEndpoints(this IEndpointRouteBuilder endpoints)
     {
         var group = endpoints.MapGroup("/api/reporting")
-            .WithTags("Reporting");
+            .WithTags("Reporting")
+            .CacheOutput("Reporting");
 
         group.MapGet(
                 "/metrics",

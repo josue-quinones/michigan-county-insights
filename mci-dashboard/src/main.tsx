@@ -1,18 +1,21 @@
-import { StrictMode } from "react";
+import { StrictMode, Suspense } from "react";
 import * as React from "react";
 import { createRoot } from "react-dom/client";
 import {
-  ArrowDown,
-  ArrowDownUp,
+  BrowserRouter,
+  Link,
+  Route,
+  Routes,
+  useLocation
+} from "react-router-dom";
+import {
   ArrowRight,
   BarChart3,
   Bug,
   Code2,
-  Database,
   LineChart,
   Linkedin,
   Plug,
-  RefreshCw,
   ShieldCheck,
   Users,
   Workflow,
@@ -20,382 +23,11 @@ import {
 } from "lucide-react";
 import "./styles.css";
 
+const DemoPage = React.lazy(() => import("./DemoPage"));
+
 // Contact + source links. Set githubUrl to a public repo URL to reveal the GitHub link.
 const linkedInUrl = "https://www.linkedin.com/in/josuequin/";
 const githubUrl: string | null = "https://github.com/josue-quinones/michigan-county-insights";
-
-type Metric = {
-  code: string;
-  displayName: string;
-  description: string;
-  category: string;
-  unit: string;
-  decimalPlaces: number;
-  calculationType: string;
-  comparisonGuidance: string;
-  requiresDollarNormalization: boolean;
-  supportsAdjacentReleaseComparison: boolean;
-};
-
-type County = {
-  fipsCode: string;
-  name: string;
-  stateCode: string;
-  stateName: string;
-};
-
-type Observation = {
-  observationId: number;
-  countyFipsCode: string;
-  countyName: string;
-  metricCode: string;
-  metricDisplayName: string;
-  category: string;
-  unit: string;
-  decimalPlaces: number;
-  estimateValue: number;
-  marginOfError: number | null;
-  releaseYear: number;
-  periodStartYear: number;
-  periodEndYear: number;
-  dataReleaseDisplayName: string;
-  comparisonGuidance: string;
-  importedAtUtc: string;
-};
-
-type Summary = {
-  metricCode: string;
-  metricDisplayName: string;
-  category: string;
-  unit: string;
-  decimalPlaces: number;
-  releaseYear: number;
-  dataReleaseDisplayName: string;
-  observationCount: number;
-  countyCount: number;
-  minimumEstimateValue: number;
-  maximumEstimateValue: number;
-  importedAtUtc: string;
-};
-
-type SortKey = "rank" | "countyName" | "estimateValue" | "marginOfError";
-type SortDirection = "asc" | "desc";
-
-const defaultReleaseYear = 2024;
-const apiBaseUrl = (import.meta.env.VITE_API_BASE_URL ?? "").replace(/\/$/, "");
-
-function apiUrl(path: string): string {
-  return `${apiBaseUrl}${path}`;
-}
-
-async function getJson<T>(url: string): Promise<T> {
-  const response = await fetch(url);
-
-  if (!response.ok) {
-    throw new Error(`Request failed: ${response.status} ${response.statusText}`);
-  }
-
-  return response.json() as Promise<T>;
-}
-
-function DashboardDemo() {
-  const [metrics, setMetrics] = React.useState<Metric[]>([]);
-  const [counties, setCounties] = React.useState<County[]>([]);
-  const [observations, setObservations] = React.useState<Observation[]>([]);
-  const [summary, setSummary] = React.useState<Summary[]>([]);
-  const [selectedMetric, setSelectedMetric] = React.useState("population");
-  const [selectedCounty, setSelectedCounty] = React.useState("");
-  const [sortKey, setSortKey] = React.useState<SortKey>("rank");
-  const [sortDirection, setSortDirection] = React.useState<SortDirection>("asc");
-  const [isLoading, setIsLoading] = React.useState(true);
-  const [error, setError] = React.useState<string | null>(null);
-
-  const loadFilterData = React.useCallback(async () => {
-    const [metricData, countyData] = await Promise.all([
-      getJson<Metric[]>(apiUrl("/api/reporting/metrics")),
-      getJson<County[]>(apiUrl("/api/reporting/counties"))
-    ]);
-
-    setMetrics(metricData);
-    setCounties(countyData);
-
-    setSelectedMetric((currentMetric) =>
-      metricData.some((metric) => metric.code === currentMetric) || metricData.length === 0
-        ? currentMetric
-        : metricData[0].code
-    );
-  }, []);
-
-  const loadObservations = React.useCallback(async () => {
-    const params = new URLSearchParams({
-      metricCode: selectedMetric,
-      releaseYear: String(defaultReleaseYear)
-    });
-
-    if (selectedCounty) {
-      params.set("countyFipsCode", selectedCounty);
-    }
-
-    const [observationData, summaryData] = await Promise.all([
-      getJson<Observation[]>(apiUrl(`/api/reporting/current-observations?${params}`)),
-      getJson<Summary[]>(apiUrl(`/api/reporting/current-observations/summary?${params}`))
-    ]);
-
-    setObservations(observationData);
-    setSummary(summaryData);
-  }, [selectedCounty, selectedMetric]);
-
-  React.useEffect(() => {
-    let isActive = true;
-
-    async function load() {
-      try {
-        setIsLoading(true);
-        setError(null);
-        await loadFilterData();
-      } catch (err) {
-        if (isActive) {
-          setError(err instanceof Error ? err.message : "Unable to load reporting filters.");
-        }
-      } finally {
-        if (isActive) {
-          setIsLoading(false);
-        }
-      }
-    }
-
-    load();
-
-    return () => {
-      isActive = false;
-    };
-  }, [loadFilterData]);
-
-  React.useEffect(() => {
-    let isActive = true;
-
-    async function load() {
-      try {
-        setIsLoading(true);
-        setError(null);
-        await loadObservations();
-      } catch (err) {
-        if (isActive) {
-          setError(err instanceof Error ? err.message : "Unable to load reporting observations.");
-        }
-      } finally {
-        if (isActive) {
-          setIsLoading(false);
-        }
-      }
-    }
-
-    if (selectedMetric) {
-      load();
-    }
-
-    return () => {
-      isActive = false;
-    };
-  }, [loadObservations, selectedMetric]);
-
-  const selectedMetricInfo = metrics.find((metric) => metric.code === selectedMetric);
-  const selectedSummary = summary[0];
-  const releaseLabel = selectedSummary?.dataReleaseDisplayName ?? "2020-2024 ACS 5-Year";
-  const periodLabel = selectedSummary
-    ? `${selectedSummary.dataReleaseDisplayName} (${selectedSummary.releaseYear})`
-    : "2020-2024 ACS 5-Year";
-
-  const rankedObservations = React.useMemo(() => {
-    const ranked = [...observations]
-      .sort((a, b) => b.estimateValue - a.estimateValue)
-      .map((observation, index) => ({ ...observation, rank: index + 1 }));
-
-    return ranked.sort((a, b) => {
-      const direction = sortDirection === "asc" ? 1 : -1;
-
-      if (sortKey === "rank") {
-        return (a.rank - b.rank) * direction;
-      }
-
-      if (sortKey === "countyName") {
-        return a.countyName.localeCompare(b.countyName) * direction;
-      }
-
-      const aValue = a[sortKey] ?? Number.NEGATIVE_INFINITY;
-      const bValue = b[sortKey] ?? Number.NEGATIVE_INFINITY;
-      return (aValue - bValue) * direction;
-    });
-  }, [observations, sortDirection, sortKey]);
-
-  function updateSort(nextSortKey: SortKey) {
-    if (sortKey === nextSortKey) {
-      setSortDirection((current) => (current === "asc" ? "desc" : "asc"));
-      return;
-    }
-
-    setSortKey(nextSortKey);
-    setSortDirection(nextSortKey === "countyName" ? "asc" : "desc");
-  }
-
-  return (
-    <div className="app-shell dashboard-demo">
-      <header className="app-header">
-        <div>
-          <p className="eyebrow">Michigan County Insights</p>
-          <h1>County Metrics Dashboard</h1>
-        </div>
-        <div className="status-pill">
-          <Database size={16} aria-hidden="true" />
-          <span>{periodLabel}</span>
-        </div>
-      </header>
-
-      <section className="toolbar" aria-label="Reporting filters">
-        <label>
-          <span>Metric</span>
-          <select value={selectedMetric} onChange={(event) => setSelectedMetric(event.target.value)}>
-            {metrics.map((metric) => (
-              <option key={metric.code} value={metric.code}>
-                {metric.displayName}
-              </option>
-            ))}
-          </select>
-        </label>
-
-        <label>
-          <span>County</span>
-          <select value={selectedCounty} onChange={(event) => setSelectedCounty(event.target.value)}>
-            <option value="">All Michigan counties</option>
-            {counties.map((county) => (
-              <option key={county.fipsCode} value={county.fipsCode}>
-                {county.name}
-              </option>
-            ))}
-          </select>
-        </label>
-
-        <button className="icon-button" type="button" onClick={loadObservations} title="Refresh data">
-          <RefreshCw size={18} aria-hidden="true" />
-          <span>Refresh</span>
-        </button>
-      </section>
-
-      {error && <div className="alert">{error}</div>}
-
-      <section className="summary-grid" aria-label="Selected metric summary">
-        <div>
-          <span className="summary-label">Release</span>
-          <strong>{releaseLabel}</strong>
-        </div>
-        <div>
-          <span className="summary-label">Counties</span>
-          <strong>{selectedSummary?.countyCount ?? rankedObservations.length}</strong>
-        </div>
-        <div>
-          <span className="summary-label">Range</span>
-          <strong>
-            {selectedSummary
-              ? `${formatValue(selectedSummary.minimumEstimateValue, selectedMetricInfo)} - ${formatValue(
-                  selectedSummary.maximumEstimateValue,
-                  selectedMetricInfo
-                )}`
-              : "Not loaded"}
-          </strong>
-        </div>
-        <div>
-          <span className="summary-label">Metric Type</span>
-          <strong>{selectedMetricInfo?.calculationType ?? "Metric"}</strong>
-        </div>
-      </section>
-
-      <section className="metric-context">
-        <div>
-          <BarChart3 size={18} aria-hidden="true" />
-          <h2>{selectedMetricInfo?.displayName ?? "Metric"}</h2>
-        </div>
-        <p>{selectedMetricInfo?.description}</p>
-        <p className="guidance">{selectedMetricInfo?.comparisonGuidance}</p>
-      </section>
-
-      <section className="table-section">
-        <div className="table-heading">
-          <h2>Current Observations</h2>
-          <span>{isLoading ? "Loading..." : `${rankedObservations.length} rows`}</span>
-        </div>
-
-        <div className="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <SortableHeader label="Rank" active={sortKey === "rank"} onClick={() => updateSort("rank")} />
-                <SortableHeader
-                  label="County"
-                  active={sortKey === "countyName"}
-                  onClick={() => updateSort("countyName")}
-                />
-                <th>FIPS</th>
-                <SortableHeader
-                  label="Estimate"
-                  active={sortKey === "estimateValue"}
-                  onClick={() => updateSort("estimateValue")}
-                />
-                <SortableHeader
-                  label="MOE"
-                  active={sortKey === "marginOfError"}
-                  onClick={() => updateSort("marginOfError")}
-                />
-                <th>Release Period</th>
-              </tr>
-            </thead>
-            <tbody>
-              {rankedObservations.map((observation) => (
-                <tr key={observation.observationId}>
-                  <td>{observation.rank}</td>
-                  <td>{observation.countyName}</td>
-                  <td>{observation.countyFipsCode}</td>
-                  <td>{formatValue(observation.estimateValue, selectedMetricInfo)}</td>
-                  <td>{observation.marginOfError === null ? "N/A" : formatValue(observation.marginOfError, selectedMetricInfo)}</td>
-                  <td>{`${observation.periodStartYear}-${observation.periodEndYear}`}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </section>
-    </div>
-  );
-}
-
-function SortableHeader({
-  active,
-  label,
-  onClick
-}: {
-  active: boolean;
-  label: string;
-  onClick: () => void;
-}) {
-  return (
-    <th>
-      <button className={active ? "sort-button active" : "sort-button"} type="button" onClick={onClick}>
-        <span>{label}</span>
-        <ArrowDownUp size={14} aria-hidden="true" />
-      </button>
-    </th>
-  );
-}
-
-function formatValue(value: number, metric?: Metric): string {
-  const decimalPlaces = metric?.decimalPlaces ?? 0;
-  const unit = metric?.unit;
-
-  return new Intl.NumberFormat("en-US", {
-    maximumFractionDigits: decimalPlaces,
-    minimumFractionDigits: decimalPlaces,
-    style: unit === "Currency" ? "currency" : "decimal"
-  }).format(value) + (unit === "Percentage" ? "%" : "");
-}
 
 const buildStages = [
   "Requirements",
@@ -450,7 +82,7 @@ const services = [
   {
     icon: LineChart,
     title: "Reporting dashboards & BI",
-    body: "Internal analytics tools that turn raw operational data into rankings, comparisons, trends, and exports the business actually uses — like the live demo below."
+    body: "Internal analytics tools that turn raw operational data into rankings, comparisons, trends, and exports the business actually uses — like the live demo."
   },
   {
     icon: Plug,
@@ -500,17 +132,17 @@ function Hero() {
           Michigan County Insights is a working demonstration of that — a full reporting-system
           stack built end to end on real U.S. Census data. It stages raw Census values, validates
           them, loads clean county metric facts into SQL Server, and serves them through a deployed
-          .NET API, GraphQL, a read-only MCP server, and the React dashboard below.
+          .NET API, GraphQL, a read-only MCP server, and an interactive React dashboard.
         </p>
         <div className="hero-actions">
           <a className="button primary" href="#contact">
             Work with me
             <ArrowRight size={16} aria-hidden="true" />
           </a>
-          <a className="button ghost" href="#live-demo">
-            View the live demo
-            <ArrowDown size={16} aria-hidden="true" />
-          </a>
+          <Link className="button ghost" to="/demo">
+            Open the live demo
+            <ArrowRight size={16} aria-hidden="true" />
+          </Link>
         </div>
       </div>
     </header>
@@ -545,25 +177,6 @@ function Services() {
         <a className="button primary services-cta" href="#contact">
           Start a conversation
           <ArrowRight size={16} aria-hidden="true" />
-        </a>
-      </div>
-    </section>
-  );
-}
-
-function Contact() {
-  return (
-    <section className="contact" id="contact">
-      <div className="container contact-inner">
-        <p className="eyebrow contact-eyebrow">Available for contract &amp; freelance work</p>
-        <h2 className="contact-title">Have a reporting or integration project? Let&apos;s talk.</h2>
-        <p className="contact-lede">
-          Tell me what your team needs to see, measure, or connect — and I&apos;ll help you build
-          the system that gets you there. Reach out on LinkedIn to start a conversation.
-        </p>
-        <a className="button primary" href={linkedInUrl} target="_blank" rel="noreferrer noopener">
-          <Linkedin size={16} aria-hidden="true" />
-          Message me on LinkedIn
         </a>
       </div>
     </section>
@@ -628,19 +241,52 @@ function Architecture() {
   );
 }
 
-function DemoSection() {
+function DemoTeaser() {
   return (
     <section className="band" id="live-demo">
-      <div className="container">
-        <p className="eyebrow">Live demo</p>
-        <h2 className="section-title">County metrics, served by the API</h2>
-        <p className="section-lede">
-          Real U.S. Census ACS 5-Year data for Michigan&apos;s 83 counties, loaded through the
-          import pipeline and served by the deployed .NET reporting API. Filter by metric and
-          county, then sort the current observations.
-        </p>
+      <div className="container demo-teaser">
+        <div className="demo-teaser-copy">
+          <p className="eyebrow">Live demo</p>
+          <h2 className="section-title">Explore the county metrics dashboard</h2>
+          <p className="section-lede">
+            Real U.S. Census ACS 5-Year data for Michigan&apos;s 83 counties, loaded through the
+            import pipeline and served by the deployed .NET reporting API. Rank counties for any
+            metric, focus a single county, and read the current observations — charts and table,
+            straight off the live API.
+          </p>
+          <Link className="button primary" to="/demo">
+            <BarChart3 size={16} aria-hidden="true" />
+            Open the live demo
+          </Link>
+        </div>
+        <div className="demo-teaser-visual" aria-hidden="true">
+          <div className="teaser-bar" style={{ width: "94%" }} />
+          <div className="teaser-bar" style={{ width: "78%" }} />
+          <div className="teaser-bar" style={{ width: "63%" }} />
+          <div className="teaser-bar" style={{ width: "51%" }} />
+          <div className="teaser-bar" style={{ width: "44%" }} />
+          <div className="teaser-bar" style={{ width: "32%" }} />
+        </div>
       </div>
-      <DashboardDemo />
+    </section>
+  );
+}
+
+function Contact() {
+  return (
+    <section className="contact" id="contact">
+      <div className="container contact-inner">
+        <p className="eyebrow contact-eyebrow">Available for contract &amp; freelance work</p>
+        <h2 className="contact-title">Have a reporting or integration project? Let&apos;s talk.</h2>
+        <p className="contact-lede">
+          Tell me what your team needs to see, measure, or connect — and I&apos;ll help you build
+          the system that gets you there. Reach out on LinkedIn to start a conversation.
+        </p>
+        <a className="button primary" href={linkedInUrl} target="_blank" rel="noreferrer noopener">
+          <Linkedin size={16} aria-hidden="true" />
+          Message me on LinkedIn
+        </a>
+      </div>
     </section>
   );
 }
@@ -666,7 +312,7 @@ function Footer() {
   );
 }
 
-function Page() {
+function HomePage() {
   return (
     <>
       <Hero />
@@ -674,7 +320,7 @@ function Page() {
         <Services />
         <HowIBuild />
         <Architecture />
-        <DemoSection />
+        <DemoTeaser />
         <Contact />
       </main>
       <Footer />
@@ -682,8 +328,50 @@ function Page() {
   );
 }
 
+function ScrollManager() {
+  const { pathname, hash } = useLocation();
+
+  React.useEffect(() => {
+    if (hash) {
+      document.getElementById(hash.slice(1))?.scrollIntoView({ behavior: "smooth" });
+      return;
+    }
+
+    window.scrollTo({ top: 0 });
+  }, [pathname, hash]);
+
+  return null;
+}
+
+function DemoFallback() {
+  return (
+    <div className="route-fallback" role="status">
+      Loading the live demo…
+    </div>
+  );
+}
+
+function App() {
+  return (
+    <BrowserRouter>
+      <ScrollManager />
+      <Routes>
+        <Route path="/" element={<HomePage />} />
+        <Route
+          path="/demo"
+          element={
+            <Suspense fallback={<DemoFallback />}>
+              <DemoPage />
+            </Suspense>
+          }
+        />
+      </Routes>
+    </BrowserRouter>
+  );
+}
+
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
-    <Page />
+    <App />
   </StrictMode>
 );

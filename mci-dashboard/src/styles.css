@@ -466,6 +466,178 @@ tbody tr:hover {
   padding-top: 8px;
 }
 
+/* ---- Demo page chrome ---- */
+
+.demo-topbar {
+  padding: 4px 0 12px;
+}
+
+.back-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: #0f5f73;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.back-link:hover {
+  text-decoration: underline;
+}
+
+.route-fallback {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 60vh;
+  color: #536b78;
+  font-size: 1.02rem;
+}
+
+.row-focus {
+  background: #eef7f9 !important;
+}
+
+.row-focus td:first-child {
+  box-shadow: inset 3px 0 0 #0f5f73;
+}
+
+/* ---- Top counties bar chart ---- */
+
+.chart-card {
+  position: relative;
+  margin-top: 8px;
+  padding: 22px;
+  border: 1px solid #d7e0e5;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.chart-head {
+  margin-bottom: 18px;
+}
+
+.chart-head h3 {
+  margin: 0 0 4px;
+  font-size: 1.15rem;
+}
+
+.chart-head p {
+  margin: 0;
+  color: #536b78;
+  font-size: 0.92rem;
+  line-height: 1.5;
+}
+
+.bar-rows {
+  display: grid;
+  gap: 2px;
+}
+
+.bar-row {
+  display: grid;
+  grid-template-columns: 26px minmax(96px, 150px) 1fr minmax(84px, auto);
+  align-items: center;
+  gap: 12px;
+  padding: 3px 6px;
+  border-radius: 6px;
+}
+
+.bar-row:hover {
+  background: #f4f9fa;
+}
+
+.bar-rank {
+  color: #8497a0;
+  font-size: 0.82rem;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.bar-county {
+  overflow: hidden;
+  color: #22333c;
+  font-size: 0.92rem;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.bar-track {
+  height: 20px;
+  background: #e8f1f3;
+  border-radius: 3px;
+}
+
+.bar-fill {
+  height: 100%;
+  border-radius: 0 4px 4px 0;
+  background: #0f5f73;
+}
+
+.bar-fill.context {
+  background: #b4d0d6;
+}
+
+.bar-value {
+  color: #17202a;
+  font-size: 0.9rem;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.chart-tooltip {
+  position: fixed;
+  z-index: 20;
+  display: grid;
+  gap: 2px;
+  max-width: 240px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: #17303a;
+  color: #eef6f8;
+  font-size: 0.86rem;
+  pointer-events: none;
+  box-shadow: 0 8px 24px rgba(15, 48, 58, 0.3);
+}
+
+.chart-tooltip strong {
+  font-size: 0.9rem;
+}
+
+.chart-tooltip-moe {
+  color: #9fc3cc;
+  font-size: 0.8rem;
+}
+
+/* ---- Home demo teaser ---- */
+
+.demo-teaser {
+  display: grid;
+  grid-template-columns: 1.3fr 1fr;
+  gap: 32px;
+  align-items: center;
+}
+
+.demo-teaser-copy .button {
+  margin-top: 22px;
+}
+
+.demo-teaser-visual {
+  display: grid;
+  gap: 10px;
+  padding: 22px;
+  border: 1px solid #d7e0e5;
+  border-radius: 10px;
+  background: #ffffff;
+}
+
+.teaser-bar {
+  height: 18px;
+  border-radius: 0 4px 4px 0;
+  background: linear-gradient(90deg, #0f5f73, #2f8296);
+}
+
 .service-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
@@ -606,11 +778,17 @@ tbody tr:hover {
 
   .practice-grid,
   .service-grid,
-  .tech-strip {
+  .tech-strip,
+  .demo-teaser {
     grid-template-columns: 1fr;
   }
 
   .contact {
     padding: 52px 0;
+  }
+
+  .bar-row {
+    grid-template-columns: 22px minmax(72px, 96px) 1fr minmax(68px, auto);
+    gap: 8px;
   }
 }

@@ -835,6 +835,17 @@ tbody tr:hover {
 
 /* ---- Ranking reveal (demo) ---- */
 
+.data-source-note {
+  margin: -6px 0 16px;
+  color: #536b78;
+  font-size: 0.88rem;
+  line-height: 1.5;
+}
+
+.data-source-note strong {
+  color: #0f5f73;
+}
+
 .ranking-section {
   margin-top: 8px;
 }

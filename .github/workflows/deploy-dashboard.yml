@@ -24,6 +24,18 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Generate demo snapshot
+        # Pre-fetch the static reporting data so the demo paints instantly from the
+        # CDN. Non-fatal: if the API is unreachable the deploy proceeds without it
+        # and the app falls back to the live API.
+        run: node scripts/generate-snapshot.mjs
+        working-directory: mci-dashboard
+
       - name: Build and deploy
         uses: Azure/static-web-apps-deploy@v1
         with:

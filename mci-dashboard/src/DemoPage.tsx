@@ -12,65 +12,12 @@ import { ChartDatum, TopCountiesChart } from "./TopCountiesChart";
 import { ProjectStory } from "./ProjectStory";
 import { formatMetricValue } from "./lib/formatMetricValue";
 import { apiUrl, getJson } from "./lib/api";
-
-type Metric = {
-  code: string;
-  displayName: string;
-  description: string;
-  category: string;
-  unit: string;
-  decimalPlaces: number;
-  calculationType: string;
-  comparisonGuidance: string;
-  requiresDollarNormalization: boolean;
-  supportsAdjacentReleaseComparison: boolean;
-};
-
-type County = {
-  fipsCode: string;
-  name: string;
-  stateCode: string;
-  stateName: string;
-};
-
-type Observation = {
-  observationId: number;
-  countyFipsCode: string;
-  countyName: string;
-  metricCode: string;
-  metricDisplayName: string;
-  category: string;
-  unit: string;
-  decimalPlaces: number;
-  estimateValue: number;
-  marginOfError: number | null;
-  releaseYear: number;
-  periodStartYear: number;
-  periodEndYear: number;
-  dataReleaseDisplayName: string;
-  comparisonGuidance: string;
-  importedAtUtc: string;
-};
-
-type Summary = {
-  metricCode: string;
-  metricDisplayName: string;
-  category: string;
-  unit: string;
-  decimalPlaces: number;
-  releaseYear: number;
-  dataReleaseDisplayName: string;
-  observationCount: number;
-  countyCount: number;
-  minimumEstimateValue: number;
-  maximumEstimateValue: number;
-  importedAtUtc: string;
-};
+import { loadDemoSnapshot } from "./lib/snapshot";
+import type { Metric, County, Observation, Summary, MetricPayload } from "./lib/demoTypes";
 
 type RankedObservation = Observation & { rank: number };
 type SortKey = "rank" | "countyName" | "estimateValue" | "marginOfError";
 type SortDirection = "asc" | "desc";
-type MetricPayload = { observations: Observation[]; summary: Summary[] };
 
 const defaultReleaseYear = 2024;
 const chartLimit = 12;
@@ -106,6 +53,8 @@ export default function DemoPage() {
   const [error, setError] = React.useState<string | null>(null);
   const [showRanking, setShowRanking] = React.useState(false);
   const [rankingRevealing, setRankingRevealing] = React.useState(false);
+  const [bootstrapped, setBootstrapped] = React.useState(false);
+  const [fromSnapshot, setFromSnapshot] = React.useState(false);
 
   const loadFilterData = React.useCallback(async () => {
     const [metricData, countyData] = await Promise.all([
@@ -146,10 +95,48 @@ export default function DemoPage() {
     [selectedMetric]
   );
 
+  // Bootstrap: paint instantly from the static snapshot when present (no API/DB
+  // cold start), otherwise fall back to the live API. Runs once on mount.
   React.useEffect(() => {
     let isActive = true;
 
-    async function load() {
+    async function bootstrap() {
+      const snapshot = await loadDemoSnapshot();
+
+      // Bail if the effect was torn down (e.g. StrictMode's dev double-invoke)
+      // so we neither update state nor spuriously fall back to the live API.
+      if (!isActive) {
+        return;
+      }
+
+      if (snapshot) {
+        for (const metric of snapshot.metrics) {
+          metricCache.set(metric.code, {
+            observations: snapshot.observations[metric.code] ?? [],
+            summary: snapshot.summaries[metric.code] ?? []
+          });
+        }
+
+        setMetrics(snapshot.metrics);
+        setCounties(snapshot.counties);
+
+        const initialMetric = snapshot.metrics.some((metric) => metric.code === selectedMetric)
+          ? selectedMetric
+          : snapshot.metrics[0]?.code ?? selectedMetric;
+        const cached = metricCache.get(initialMetric);
+        if (cached) {
+          setObservations(cached.observations);
+          setSummary(cached.summary);
+        }
+
+        setSelectedMetric(initialMetric);
+        setFromSnapshot(true);
+        setBootstrapped(true);
+        setIsLoading(false);
+        return;
+      }
+
+      // No snapshot: load filter data from the live API.
       try {
         setIsLoading(true);
         setError(null);
@@ -160,23 +147,30 @@ export default function DemoPage() {
         }
       } finally {
         if (isActive) {
-          setIsLoading(false);
+          setBootstrapped(true);
         }
       }
     }
 
-    load();
+    bootstrap();
 
     return () => {
       isActive = false;
     };
+    // Intentionally run once; selectedMetric is read as the initial default only.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loadFilterData]);
 
+  // React to metric changes. Snapshot-primed metrics are served from the cache
+  // instantly; a cache miss (live mode, or Refresh) fetches from the API.
   React.useEffect(() => {
+    if (!bootstrapped || !selectedMetric) {
+      return;
+    }
+
     let isActive = true;
 
     async function load() {
-      // A cached metric renders synchronously, so skip the loading skeleton.
       if (metricCache.has(selectedMetric)) {
         const cached = metricCache.get(selectedMetric)!;
         setObservations(cached.observations);
@@ -200,20 +194,19 @@ export default function DemoPage() {
       }
     }
 
-    if (selectedMetric) {
-      load();
-    }
+    load();
 
     return () => {
       isActive = false;
     };
-  }, [loadObservations, selectedMetric]);
+  }, [bootstrapped, loadObservations, selectedMetric]);
 
   const handleRefresh = React.useCallback(async () => {
     try {
       setIsLoading(true);
       setError(null);
       await loadObservations(true);
+      setFromSnapshot(false);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to refresh reporting observations.");
     } finally {
@@ -350,11 +343,23 @@ export default function DemoPage() {
           </select>
         </label>
 
-        <button className="icon-button" type="button" onClick={handleRefresh} title="Refresh data">
+        <button
+          className="icon-button"
+          type="button"
+          onClick={handleRefresh}
+          title={fromSnapshot ? "Fetch the latest values from the live API" : "Refresh data"}
+        >
           <RefreshCw size={18} aria-hidden="true" />
-          <span>Refresh</span>
+          <span>{fromSnapshot ? "Refresh (live)" : "Refresh"}</span>
         </button>
       </section>
+
+      {fromSnapshot && (
+        <p className="data-source-note">
+          Showing a cached snapshot for instant load. Use <strong>Refresh (live)</strong> to pull
+          current values straight from the deployed API.
+        </p>
+      )}
 
       {error && <div className="alert">{error}</div>}
 

@@ -20,6 +20,9 @@ mci-dashboard/*.tsbuildinfo
 mci-dashboard/vite.config.js
 mci-dashboard/vite.config.d.ts
 
+# Generated at deploy time by scripts/generate-snapshot.mjs
+mci-dashboard/public/demo-snapshot.json
+
 artifacts/*.log
 artifacts/*.pid
 artifacts/publish/

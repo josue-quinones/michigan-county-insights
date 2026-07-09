@@ -64,4 +64,50 @@ public sealed class ReportingQueryServiceTests
         Assert.Equal(8, summary.Count);
         Assert.All(summary, item => Assert.Equal(83, item.CountyCount));
     }
+
+    [Fact]
+    public async Task Gets_a_single_county_by_fips_from_local_database_when_connection_string_is_present()
+    {
+        var connectionString = Environment.GetEnvironmentVariable("MCI_TEST_CONNECTION_STRING");
+
+        if (string.IsNullOrWhiteSpace(connectionString))
+        {
+            return;
+        }
+
+        var options = new DbContextOptionsBuilder<MciDbContext>()
+            .UseSqlServer(connectionString)
+            .Options;
+
+        await using var dbContext = new MciDbContext(options);
+        var service = new ReportingQueryService(dbContext);
+
+        var county = await service.GetCountyAsync("26161");
+
+        Assert.NotNull(county);
+        Assert.Equal("Washtenaw", county!.Name);
+        Assert.Equal("MI", county.StateCode);
+    }
+
+    [Fact]
+    public async Task Unknown_fips_returns_null_county_from_local_database_when_connection_string_is_present()
+    {
+        var connectionString = Environment.GetEnvironmentVariable("MCI_TEST_CONNECTION_STRING");
+
+        if (string.IsNullOrWhiteSpace(connectionString))
+        {
+            return;
+        }
+
+        var options = new DbContextOptionsBuilder<MciDbContext>()
+            .UseSqlServer(connectionString)
+            .Options;
+
+        await using var dbContext = new MciDbContext(options);
+        var service = new ReportingQueryService(dbContext);
+
+        var county = await service.GetCountyAsync("00000");
+
+        Assert.Null(county);
+    }
 }

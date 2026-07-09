@@ -12,3 +12,10 @@ public sealed record ReleaseInfoDto(
     short PeriodStartYear,
     short PeriodEndYear,
     string DisplayName);
+
+/// <summary>Lightweight metric identity for ranking responses.</summary>
+public sealed record MetricReferenceDto(
+    string Code,
+    string DisplayName,
+    string Category,
+    string Unit);

@@ -93,6 +93,23 @@ public sealed class ReportingQueryService : IReportingQueryService
                 county.StateName))
             .ToArrayAsync(cancellationToken);
 
+    public async Task<ReportingCountyDto?> GetCountyAsync(
+        string fipsCode,
+        CancellationToken cancellationToken = default)
+    {
+        var fips = fipsCode.Trim();
+
+        return await _dbContext.Counties
+            .AsNoTracking()
+            .Where(county => county.IsActive && county.FipsCode == fips)
+            .Select(county => new ReportingCountyDto(
+                county.FipsCode,
+                county.Name,
+                county.StateCode,
+                county.StateName))
+            .FirstOrDefaultAsync(cancellationToken);
+    }
+
     public async Task<IReadOnlyList<CurrentCountyMetricObservationSummaryDto>> GetCurrentCountyMetricObservationSummaryAsync(
         CurrentCountyMetricObservationQuery query,
         CancellationToken cancellationToken = default)

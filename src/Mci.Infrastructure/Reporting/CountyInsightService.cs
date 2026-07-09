@@ -136,6 +136,62 @@ public sealed class CountyInsightService : ICountyInsightService
             metricRows);
     }
 
+    public async Task<IReadOnlyList<CountyRankingRowDto>> RankCountiesAsync(
+        string metricCode,
+        short? releaseYear,
+        int first,
+        CancellationToken cancellationToken = default)
+    {
+        var code = Normalize(metricCode);
+
+        var metric = await _dbContext.MetricDefinitions
+            .AsNoTracking()
+            .Where(m => m.IsActive && m.Code == code)
+            .FirstOrDefaultAsync(cancellationToken)
+            ?? throw new KeyNotFoundException($"Metric '{code}' was not found.");
+
+        var release = await ResolveReleaseAsync(releaseYear, cancellationToken)
+            ?? throw new KeyNotFoundException("No data release is available.");
+
+        var rows = await _dbContext.CurrentCountyMetricObservations
+            .AsNoTracking()
+            .Where(observation =>
+                observation.MetricCode == code &&
+                observation.ReleaseYear == release.ReleaseYear)
+            .Join(
+                _dbContext.Counties.AsNoTracking(),
+                observation => observation.CountyFipsCode,
+                county => county.FipsCode,
+                (observation, county) => new
+                {
+                    observation.CountyFipsCode,
+                    observation.CountyName,
+                    county.StateCode,
+                    observation.EstimateValue,
+                    observation.MarginOfError,
+                })
+            .OrderByDescending(row => row.EstimateValue)
+            .Take(first)
+            .ToListAsync(cancellationToken);
+
+        var metricReference = new MetricReferenceDto(
+            metric.Code,
+            metric.DisplayName,
+            metric.Category,
+            metric.Unit.ToString());
+        var releaseInfo = ToReleaseInfo(release);
+
+        return rows
+            .Select((row, index) => new CountyRankingRowDto(
+                index + 1,
+                new CountyReferenceDto(row.CountyFipsCode, row.CountyName, row.StateCode),
+                metricReference,
+                releaseInfo,
+                row.EstimateValue,
+                row.MarginOfError))
+            .ToArray();
+    }
+
     private Task<County?> FindCountyAsync(string fips, CancellationToken cancellationToken) =>
         _dbContext.Counties
             .AsNoTracking()

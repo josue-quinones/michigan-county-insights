@@ -25,4 +25,15 @@ public interface ICountyInsightService
         string rightCountyFips,
         short? releaseYear,
         CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Ranks counties by a single metric for the given (or default) release, highest
+    /// estimate first, limited to <paramref name="first"/> rows. Throws
+    /// <see cref="KeyNotFoundException"/> when the metric code or release is unknown.
+    /// </summary>
+    Task<IReadOnlyList<CountyRankingRowDto>> RankCountiesAsync(
+        string metricCode,
+        short? releaseYear,
+        int first,
+        CancellationToken cancellationToken = default);
 }

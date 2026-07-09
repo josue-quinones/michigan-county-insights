@@ -69,3 +69,6 @@ app.MapGraphQL("/graphql");
 app.MapGet("/", () => Results.Redirect("/health"));
 
 app.Run();
+
+/// <summary>Exposes the generated entry-point type so WebApplicationFactory&lt;Program&gt; can host it in tests.</summary>
+public partial class Program;

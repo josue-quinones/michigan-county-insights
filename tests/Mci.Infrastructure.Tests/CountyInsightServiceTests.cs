@@ -95,4 +95,49 @@ public sealed class CountyInsightServiceTests
         Assert.Equal(8, comparison.Metrics.Count);
         Assert.Contains(comparison.Metrics, metric => metric.IsAvailable && metric.Difference is not null);
     }
+
+    [Fact]
+    public async Task Ranks_counties_by_metric_and_respects_the_first_limit_from_local_database_when_connection_string_is_present()
+    {
+        var connectionString = Environment.GetEnvironmentVariable("MCI_TEST_CONNECTION_STRING");
+
+        if (string.IsNullOrWhiteSpace(connectionString))
+        {
+            return;
+        }
+
+        var options = new DbContextOptionsBuilder<MciDbContext>()
+            .UseSqlServer(connectionString)
+            .Options;
+
+        await using var dbContext = new MciDbContext(options);
+        var service = new CountyInsightService(dbContext);
+
+        var ranking = await service.RankCountiesAsync("median_household_income", releaseYear: 2024, first: 5);
+
+        Assert.Equal(5, ranking.Count);
+        Assert.Equal(Enumerable.Range(1, 5), ranking.Select(row => row.Rank));
+        Assert.True(ranking[0].EstimateValue >= ranking[1].EstimateValue);
+    }
+
+    [Fact]
+    public async Task Unknown_metric_code_throws_for_ranking_from_local_database_when_connection_string_is_present()
+    {
+        var connectionString = Environment.GetEnvironmentVariable("MCI_TEST_CONNECTION_STRING");
+
+        if (string.IsNullOrWhiteSpace(connectionString))
+        {
+            return;
+        }
+
+        var options = new DbContextOptionsBuilder<MciDbContext>()
+            .UseSqlServer(connectionString)
+            .Options;
+
+        await using var dbContext = new MciDbContext(options);
+        var service = new CountyInsightService(dbContext);
+
+        await Assert.ThrowsAsync<KeyNotFoundException>(() =>
+            service.RankCountiesAsync("not_a_real_metric", releaseYear: 2024, first: 5));
+    }
 }
